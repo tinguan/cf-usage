@@ -1,0 +1,19 @@
+name = "cf-spend"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cf_spend"
+database_id = "d67d0a70-8df7-46b1-9dc1-bab3f6c5cc8d"
+
+# Non-secret vars — CF_DASHBOARD_USER is set as a Pages secret instead
+# [vars]
+
+# Secrets (set via: wrangler pages secret put <NAME>)
+# CF_API_TOKEN
+# CF_ACCOUNT_ID
+# CF_DASHBOARD_PASS
+# SESSION_SECRET
+# SLACK_WEBHOOK_URL

@@ -1,0 +1,10 @@
+name = "cf-spend-cron"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["*/10 * * * *"]
+
+# Secrets (set via: wrangler secret put <NAME> --config cron-worker/wrangler.toml)
+# SYNC_SECRET  — must match SESSION_SECRET used to call /api/sync
