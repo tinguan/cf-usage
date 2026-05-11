@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { getLatestSnapshot, getLatestWorkerSnapshots } from "@/lib/services/usage";
+import { getLatestSnapshot, getLatestWorkerSnapshots, getLatestQueueSnapshots } from "@/lib/services/usage";
 import { settings } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { PRICING, TierName, computeEstimatedCost, getUsagePct } from "@/lib/pricing";
 
 export const runtime = "edge";
 
-const RESOURCES = ["workers", "r2", "kv", "d1", "pages"];
+const RESOURCES = ["workers", "r2", "kv", "d1", "queues", "pages"];
 
 export async function GET() {
   const db = getDb();
@@ -47,6 +47,7 @@ export async function GET() {
   );
 
   const workers = await getLatestWorkerSnapshots(db);
+  const queues = await getLatestQueueSnapshots(db);
 
-  return NextResponse.json({ cards, workers, tier });
+  return NextResponse.json({ cards, workers, queues, tier });
 }

@@ -15,6 +15,7 @@ export interface ResourceLimit {
   builds?: number; // per month
   storedMinutes?: number; // video
   deliveredMinutes?: number;
+  billableOps?: number; // queues, per month
 }
 
 export interface OveragePrice {
@@ -27,6 +28,7 @@ export interface OveragePrice {
   perMillionWrites?: number;
   perMillionRowReads?: number;
   perMillionRowWrites?: number;
+  perMillionBillableOps?: number; // queues
 }
 
 export interface ResourcePricing {
@@ -116,6 +118,20 @@ export const PRICING: Record<string, ResourcePricing> = {
     },
     overage: {},
   },
+  queues: {
+    // Free: 1M ops/month included. Paid: $0.40 per million ops above free tier.
+    // https://developers.cloudflare.com/queues/platform/pricing/
+    monthlyBase: 0,
+    free: {
+      billableOps: 1_000_000,
+    },
+    paid: {
+      billableOps: 1_000_000,
+    },
+    overage: {
+      perMillionBillableOps: 0.4,
+    },
+  },
 };
 
 export function computeEstimatedCost(
@@ -198,6 +214,15 @@ export function computeEstimatedCost(
       cost +=
         ((rowWritesUsed - rowWritesLimit) / 1_000_000) *
         o.perMillionRowWrites;
+    }
+  }
+
+  // Queues
+  if (resource === "queues") {
+    const opsUsed = usage.billableOps ?? 0;
+    const opsLimit = limits.billableOps ?? 0;
+    if (opsUsed > opsLimit && o.perMillionBillableOps) {
+      cost += ((opsUsed - opsLimit) / 1_000_000) * o.perMillionBillableOps;
     }
   }
 

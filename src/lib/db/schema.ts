@@ -60,3 +60,17 @@ export const billingHistory = sqliteTable("billing_history", {
   lineItems: text("line_items", { mode: "json" }),
   fetchedAt: integer("fetched_at", { mode: "timestamp" }).notNull(),
 });
+
+export const queueSnapshots = sqliteTable("queue_snapshots", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  queueId: text("queue_id").notNull(),
+  queueName: text("queue_name").notNull(),
+  capturedAt: integer("captured_at", { mode: "timestamp" }).notNull(),
+  periodStart: text("period_start").notNull(),
+  periodEnd: text("period_end").notNull(),
+  billableOps: integer("billable_ops").default(0),
+  bytes: integer("bytes").default(0),
+  messagesWritten: integer("messages_written").default(0),
+  messagesRead: integer("messages_read").default(0),
+  messagesDeleted: integer("messages_deleted").default(0),
+});

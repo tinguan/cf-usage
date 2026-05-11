@@ -92,3 +92,37 @@ export async function getZones(
     `/zones?account.id=${accountId}&per_page=50`
   );
 }
+
+export interface CFD1Database {
+  uuid: string;
+  name: string;
+  file_size: number; // bytes
+  num_tables?: number;
+}
+
+export async function getD1Databases(
+  token: string,
+  accountId: string
+): Promise<CFD1Database[]> {
+  return cfFetch<CFD1Database[]>(
+    token,
+    `/accounts/${accountId}/d1/database?per_page=100`
+  );
+}
+
+export interface CFQueue {
+  queue_id: string;
+  queue_name: string;
+  created_on: string;
+  modified_on: string;
+}
+
+export async function getQueues(
+  token: string,
+  accountId: string
+): Promise<CFQueue[]> {
+  return cfFetch<CFQueue[]>(
+    token,
+    `/accounts/${accountId}/queues?per_page=100`
+  );
+}

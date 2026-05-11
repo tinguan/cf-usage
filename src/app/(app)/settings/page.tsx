@@ -39,10 +39,20 @@ const TIER_OPTIONS = [
   },
 ];
 
+const SYNC_INTERVAL_OPTIONS = [
+  { value: "1", label: "Every hour" },
+  { value: "2", label: "Every 2 hours" },
+  { value: "4", label: "Every 4 hours" },
+  { value: "6", label: "Every 6 hours" },
+  { value: "12", label: "Every 12 hours" },
+  { value: "24", label: "Every 24 hours" },
+];
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const [tier, setTier] = useState("free");
   const [slackWebhook, setSlackWebhook] = useState("");
+  const [syncIntervalHours, setSyncIntervalHours] = useState("1");
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -54,6 +64,7 @@ export default function SettingsPage() {
         setSettings(d);
         setTier((d.tier as string) ?? "free");
         setSlackWebhook((d.slack_webhook as string) ?? "");
+        setSyncIntervalHours((d.sync_interval_hours as string) ?? "1");
         setLoading(false);
       });
   }, []);
@@ -65,6 +76,7 @@ export default function SettingsPage() {
       body: JSON.stringify({
         tier,
         slack_webhook: slackWebhook || null,
+        sync_interval_hours: syncIntervalHours,
       }),
     });
     setSaved(true);
@@ -150,6 +162,41 @@ export default function SettingsPage() {
             If empty, falls back to the <code>SLACK_WEBHOOK_URL</code>{" "}
             environment variable.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Sync Interval</CardTitle>
+          <CardDescription>
+            How often the background cron syncs usage data from Cloudflare. The
+            cron fires every hour; syncs are skipped if run sooner than the
+            configured interval.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-1.5">
+            <Label htmlFor="sync-interval">Interval</Label>
+            <Select
+              value={syncIntervalHours}
+              onValueChange={(v) => setSyncIntervalHours(v ?? "1")}
+            >
+              <SelectTrigger id="sync-interval" className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SYNC_INTERVAL_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground pt-1">
+              Manual sync from the dashboard always runs regardless of this
+              setting.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

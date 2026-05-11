@@ -45,6 +45,7 @@ export interface WorkerScriptUsage {
   scriptName: string;
   requests: number;
   errors: number;
+  subrequests: number;
   cpuTimeP50: number;
   cpuTimeP99: number;
 }
@@ -92,6 +93,7 @@ export async function getWorkersUsage(
     scriptName: r.dimensions.scriptName,
     requests: r.sum.requests,
     errors: r.sum.errors,
+    subrequests: r.sum.subrequests,
     cpuTimeP50: r.quantiles.cpuTimeP50,
     cpuTimeP99: r.quantiles.cpuTimeP99,
   }));
@@ -161,15 +163,24 @@ export async function getR2Usage(
     (acct?.storage[0]?.max.payloadSize ?? 0) +
     (acct?.storage[0]?.max.metadataSize ?? 0);
 
-  const classA = ["ListBuckets", "PutBucket", "DeleteBucket", "PutObject", "DeleteObject", "CopyObject", "CompleteMultipartUpload"];
+  // CF R2 pricing: Class A = mutations; Class B = reads
+  // https://developers.cloudflare.com/r2/pricing/
+  const CLASS_A_OPS = new Set([
+    "PutObject", "DeleteObject", "DeleteObjects", "CopyObject",
+    "CompleteMultipartUpload", "CreateMultipartUpload", "UploadPart", "UploadPartCopy",
+    "AbortMultipartUpload", "ListObjects", "ListBuckets",
+    "PutBucket", "DeleteBucket",
+  ]);
+  const CLASS_B_OPS = new Set(["GetObject", "HeadObject"]);
+
   const classAOps =
     acct?.ops
-      .filter((r) => classA.includes(r.dimensions.actionType))
+      .filter((r) => CLASS_A_OPS.has(r.dimensions.actionType))
       .reduce((s, r) => s + r.sum.requests, 0) ?? 0;
 
   const classBOps =
     acct?.ops
-      .filter((r) => r.dimensions.actionType === "GetObject")
+      .filter((r) => CLASS_B_OPS.has(r.dimensions.actionType))
       .reduce((s, r) => s + r.sum.requests, 0) ?? 0;
 
   return {
@@ -238,6 +249,8 @@ export async function getKVUsage(
 export interface D1Usage {
   rowReads: number;
   rowWrites: number;
+  readQueries: number;
+  writeQueries: number;
   storageGB: number;
 }
 
@@ -288,10 +301,74 @@ export async function getD1Usage(
     (acc, r) => {
       acc.rowReads += r.sum.rowsRead ?? 0;
       acc.rowWrites += r.sum.rowsWritten ?? 0;
+      acc.readQueries += r.sum.readQueries ?? 0;
+      acc.writeQueries += r.sum.writeQueries ?? 0;
       return acc;
     },
-    { rowReads: 0, rowWrites: 0 }
+    { rowReads: 0, rowWrites: 0, readQueries: 0, writeQueries: 0 }
   );
 
   return { ...totals, storageGB: 0 };
+}
+
+// ─── Queues ──────────────────────────────────────────────────────────────────
+
+export interface QueueUsage {
+  queueId: string;
+  billableOps: number;
+  bytes: number;
+  messagesWritten: number;
+  messagesRead: number;
+  messagesDeleted: number;
+}
+
+export async function getQueuesUsage(
+  token: string,
+  accountId: string,
+  start: string,
+  end: string
+): Promise<QueueUsage[]> {
+  const query = `
+    query QueuesUsage($accountId: String!, $start: String!, $end: String!) {
+      viewer {
+        accounts(filter: { accountTag: $accountId }) {
+          queueMessageOperationsAdaptiveGroups(
+            limit: 10000
+            filter: { datetime_geq: $start, datetime_leq: $end }
+          ) {
+            sum { billableOperations bytes }
+            dimensions { queueId actionType }
+          }
+        }
+      }
+    }
+  `;
+
+  interface Row {
+    sum: { billableOperations: number; bytes: number };
+    dimensions: { queueId: string; actionType: string };
+  }
+  interface GqlResult {
+    viewer: { accounts: { queueMessageOperationsAdaptiveGroups: Row[] }[] };
+  }
+
+  const data = await gql<GqlResult>(token, query, { accountId, start, end });
+  const rows = data.viewer.accounts[0]?.queueMessageOperationsAdaptiveGroups ?? [];
+
+  // Aggregate per queue
+  const byQueue = new Map<string, QueueUsage>();
+  for (const r of rows) {
+    const qId = r.dimensions.queueId;
+    if (!byQueue.has(qId)) {
+      byQueue.set(qId, { queueId: qId, billableOps: 0, bytes: 0, messagesWritten: 0, messagesRead: 0, messagesDeleted: 0 });
+    }
+    const q = byQueue.get(qId)!;
+    q.billableOps += r.sum.billableOperations ?? 0;
+    q.bytes += r.sum.bytes ?? 0;
+    if (r.dimensions.actionType === "WriteMessage") q.messagesWritten += r.sum.billableOperations ?? 0;
+    if (r.dimensions.actionType === "ReadMessage")  q.messagesRead    += r.sum.billableOperations ?? 0;
+    if (r.dimensions.actionType === "DeleteMessage") q.messagesDeleted += r.sum.billableOperations ?? 0;
+  }
+
+  return Array.from(byQueue.values());
 }
