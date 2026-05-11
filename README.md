@@ -90,7 +90,7 @@ No write permissions are needed. The token never creates, modifies, or deletes a
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/tinguan/cloudflare_spend.git cf-usage
+git clone https://github.com/tinguan/cf-usage.git cf-usage
 cd cf-usage
 npm install
 ```
