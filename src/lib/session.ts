@@ -9,7 +9,7 @@ export function getSessionOptions(): SessionOptions {
   return {
     password:
       process.env.SESSION_SECRET ?? "fallback-dev-secret-must-change-32chars!",
-    cookieName: "cf_spend_session",
+    cookieName: "cf_usage_session",
     cookieOptions: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
@@ -20,5 +20,5 @@ export function getSessionOptions(): SessionOptions {
 }
 
 // For proxy.ts which needs the cookie name without a full options object
-export const SESSION_COOKIE_NAME = "cf_spend_session";
+export const SESSION_COOKIE_NAME = "cf_usage_session";
 
